@@ -1,8 +1,29 @@
 import http from 'node:http'
 
+const port = process.env.PORT || 3000
+
 const server = http.createServer((req, res) => {
-  res.writeHead(200, { 'Content-Type': 'text/plain' })
-  res.end('Hello World\n')
+  res.setHeaders(new Headers({ 'Content-Type': 'application/json' }))
+
+  if (req.method === 'GET' && req.url === '/health') {
+    res.writeHead(200)
+    res.end(JSON.stringify({ health: true }))
+    return
+  }
+
+  if (req.method === 'POST' && req.url === '/payments') {
+    // TODO
+  }
+
+  if (req.method === 'GET' && req.url === '/payments-summary') {
+    // TODO
+  }
+
+  if (req.method === 'POST' && req.url === '/purge-payments') {
+    // TODO
+  }
+
+  res.writeHead(404)
 })
 
 const shutdown = () => {
@@ -24,6 +45,6 @@ process.on('unhandledRejection', (reason, promise) => {
   shutdown()
 })
 
-server.listen(3000, () => {
-  console.log('Server running at http://localhost:3000/')
+server.listen(port, () => {
+  console.log('Server running at http://localhost:' + port)
 })
