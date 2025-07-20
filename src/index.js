@@ -25,18 +25,10 @@ const server = http.createServer(async (req, res) => {
     })
 
     req.on('end', async () => {
-      try {
-        const payment = JSON.parse(body)
-
-        await paymentsQueue.add(payment)
-
-        res.writeHead(202)
-        res.end()
-
-      } catch (error) {
-        res.writeHead(400)
-        res.end(JSON.stringify({ error: 'Invalid JSON' }))
-      }
+      const payment = JSON.parse(body)
+      await paymentsQueue.add({ ...payment, url: `${process.env.PAYMENT_PROCESSOR_DEFAULT_URL}/payments` }, { removeOnComplete: true, removeOnFail: true, attempts: 1000, backoff: { type: 'fixed', delay: 1000 }})
+      res.writeHead(202)
+      res.end()
     })
     return
   }
@@ -45,15 +37,17 @@ const server = http.createServer(async (req, res) => {
     const parsedUrl = url.parse(req.url, true);
     const queryParams = parsedUrl.query;
 
-    const response = await getPaymentsSummary(redis, queryParams.from, queryParams.to);
+    const response = await getPaymentsSummary(queryParams.from, queryParams.to);
     res.writeHead(200)
     res.end(JSON.stringify(response))
     return
   }
 
   if (req.method === 'POST' && req.url === '/purge-payments') {
+    await paymentsQueue.obliterate({ force: true })
     await purgePayments()
     res.writeHead(204)
+    res.end()
     return
   }
 
@@ -74,11 +68,9 @@ process.on('SIGINT', shutdown)
 process.on('SIGTERM', shutdown)
 process.on('uncaughtException', (err) => {
   console.error('Uncaught Exception:', err)
-  shutdown()
 })
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason)
-  shutdown()
 })
 
 server.listen(port, () => {

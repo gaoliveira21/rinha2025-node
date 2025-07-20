@@ -6,4 +6,4 @@ fi
 
 set -a && source ./.env && set +a
 
-node src/index.js
+npm run dev

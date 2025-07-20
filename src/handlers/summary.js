@@ -4,7 +4,7 @@ export async function getPaymentsSummary(from, to) {
   let cursor = '0';
   let totalRequests = 0;
   let totalAmount = 0;
-  const fromDate = from ? new Date(from) : new Date('1970-01-01T00:00:00Z');
+  const fromDate = from ? new Date(from) : new Date('1970-01-01T00:00:00.000Z');
   const toDate = to ? new Date(to) : new Date();
 
   do {
