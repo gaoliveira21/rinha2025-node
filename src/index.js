@@ -58,6 +58,13 @@ const server = http.createServer(async (req, res) => {
     return
   }
 
+  if (req.method === 'POST' && req.url === '/retry-failed-jobs') {
+    const retried = await lightweightQueue.retryFailedJobs()
+    res.writeHead(200)
+    res.end(JSON.stringify({ retried }))
+    return
+  }
+
   res.writeHead(404)
   res.end(JSON.stringify({ error: 'Not Found' }))
 })
