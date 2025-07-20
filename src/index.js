@@ -1,6 +1,6 @@
 import http from 'node:http'
 import url from 'node:url'
-import { paymentsQueue } from './queue/payments_queue.js'
+import { lightweightQueue } from './queue/lightweight_queue.js'
 
 import { redis } from './redis.js'
 import { getPaymentsSummary } from './handlers/summary.js'
@@ -26,7 +26,7 @@ const server = http.createServer(async (req, res) => {
 
     req.on('end', async () => {
       const payment = JSON.parse(body)
-      await paymentsQueue.add({ ...payment, url: `${process.env.PAYMENT_PROCESSOR_DEFAULT_URL}/payments` }, { removeOnComplete: true, removeOnFail: true, attempts: 1000, backoff: { type: 'fixed', delay: 1000 }})
+      await lightweightQueue.add({ ...payment, url: `${process.env.PAYMENT_PROCESSOR_DEFAULT_URL}/payments` })
       res.writeHead(202)
       res.end()
     })
@@ -44,10 +44,17 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.method === 'POST' && req.url === '/purge-payments') {
-    await paymentsQueue.obliterate({ force: true })
+    await lightweightQueue.clear()
     await purgePayments()
     res.writeHead(204)
     res.end()
+    return
+  }
+
+  if (req.method === 'GET' && req.url === '/queue-stats') {
+    const stats = await lightweightQueue.getStats()
+    res.writeHead(200)
+    res.end(JSON.stringify(stats))
     return
   }
 
@@ -75,4 +82,6 @@ process.on('unhandledRejection', (reason, promise) => {
 
 server.listen(port, () => {
   console.log('Server running at http://localhost:' + port)
+  // Iniciar processamento da fila
+  lightweightQueue.process().catch(console.error)
 })
