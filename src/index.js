@@ -1,5 +1,6 @@
 import http from 'node:http'
 import url from 'node:url'
+import { paymentsQueue } from './queue/payments_queue.js'
 
 import { redis } from './redis.js'
 import { getPaymentsSummary } from './handlers/summary.js'
@@ -17,7 +18,27 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.method === 'POST' && req.url === '/payments') {
-    // TODO
+    let body = ''
+
+    req.on('data', (chunk) => {
+      body += chunk.toString()
+    })
+
+    req.on('end', async () => {
+      try {
+        const payment = JSON.parse(body)
+
+        await paymentsQueue.add(payment)
+
+        res.writeHead(202)
+        res.end()
+
+      } catch (error) {
+        res.writeHead(400)
+        res.end(JSON.stringify({ error: 'Invalid JSON' }))
+      }
+    })
+    return
   }
 
   if (req.method === 'GET' && req.url.includes('/payments-summary')) {
@@ -42,9 +63,7 @@ const server = http.createServer(async (req, res) => {
 
 const shutdown = async () => {
   console.log('Shutting down server...')
-  await redis.quit(() => {
-    console.log('Redis connection closed.')
-  })
+  await redis.quit()
   server.close(() => {
     console.log('Server shut down gracefully.')
     process.exit(0)
