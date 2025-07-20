@@ -5,6 +5,7 @@ x-service-templates:
       - NODE_ENV=production
       - PORT=3000
       - PAYMENT_PROCESSOR_DEFAULT_URL=http://payment-processor-default:8080
+      - REDIS_URL=redis://redis:6379
     networks:
       - backend
       - payment-processor
@@ -33,15 +34,40 @@ services:
           cpus: "0.15"
           memory: "20MB"
 
+  redis:
+    image: redis:7.2-alpine
+    container_name: redis-db
+    command: redis-server --save "" --appendonly no --maxclients 20000
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "6379:6379"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.6"
+          memory: "150MB"
+
   app01:
     <<: *app
     container_name: rinha-node-app01
     hostname: app01
+    depends_on:
+      redis:
+        condition: service_healthy
 
   app02:
     <<: *app
     container_name: rinha-node-app02
     hostname: app02
+    depends_on:
+      redis:
+        condition: service_healthy
 
 networks:
   backend:

@@ -1,8 +1,13 @@
 import http from 'node:http'
+import url from 'node:url'
+
+import { redis } from './redis.js'
+import { getPaymentsSummary } from './handlers/summary.js'
+import { purgePayments } from './handlers/purge.js'
 
 const port = process.env.PORT || 3000
 
-const server = http.createServer((req, res) => {
+const server = http.createServer(async (req, res) => {
   res.setHeaders(new Headers({ 'Content-Type': 'application/json' }))
 
   if (req.method === 'GET' && req.url === '/health') {
@@ -15,19 +20,31 @@ const server = http.createServer((req, res) => {
     // TODO
   }
 
-  if (req.method === 'GET' && req.url === '/payments-summary') {
-    // TODO
+  if (req.method === 'GET' && req.url.includes('/payments-summary')) {
+    const parsedUrl = url.parse(req.url, true);
+    const queryParams = parsedUrl.query;
+
+    const response = await getPaymentsSummary(redis, queryParams.from, queryParams.to);
+    res.writeHead(200)
+    res.end(JSON.stringify(response))
+    return
   }
 
   if (req.method === 'POST' && req.url === '/purge-payments') {
-    // TODO
+    await purgePayments()
+    res.writeHead(204)
+    return
   }
 
   res.writeHead(404)
+  res.end(JSON.stringify({ error: 'Not Found' }))
 })
 
-const shutdown = () => {
+const shutdown = async () => {
   console.log('Shutting down server...')
+  await redis.quit(() => {
+    console.log('Redis connection closed.')
+  })
   server.close(() => {
     console.log('Server shut down gracefully.')
     process.exit(0)

@@ -11,6 +11,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "@types/node": "^22.16.5"
+    "@types/node": "^22.16.5",
+    "ioredis": "^5.6.1"
   }
 }
